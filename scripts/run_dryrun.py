@@ -1,22 +1,26 @@
-"""啟動 DryRun 引擎（需本地配置與 API Key）。"""
+"""啟動多交易對 DryRun，引擎配置來自 config/*.yaml。"""
 from __future__ import annotations
 
 import asyncio
+import os
 from decimal import Decimal
+from pathlib import Path
+from typing import List
 
-from business.engine.dryrun import DryRunEngine
+import yaml
+
+from business.engine.dryrun import DryRunEngine, PairContext
 from business.execution.executor import OrderExecutor
 from business.orderbook.feed import OrderBookFeed
 from business.orderbook.manager import OrderBookManager
+from business.risk.circuit_breaker import CircuitBreakerConfig
 from business.risk.manager import RiskConfig, RiskManager
 from business.risk.position_limiter import PositionLimit
-from business.risk.circuit_breaker import CircuitBreakerConfig
 from business.strategy.base import StrategyConfig
 from business.strategy.spread_arbitrage import SpreadArbitrageStrategy
-from business.strategy.signal import ArbitrageDirection
 from core.gateway.base import GatewaySettings
-from core.gateway.ratelimit.token_bucket import TokenBucket
 from core.gateway.ratelimit.exchange_limits import DEFAULT_LIMITS
+from core.gateway.ratelimit.token_bucket import TokenBucket
 from core.gateway.upbit import UpbitGateway
 from core.gateway.bithumb import BithumbGateway
 from core.parser.upbit import UpbitParser
@@ -61,11 +65,46 @@ async def main() -> None:
     upbit_wrapper = UpbitWrapper(upbit_gateway, UpbitParser())
     bithumb_wrapper = BithumbWrapper(bithumb_gateway, BithumbParser())
 
-    upbit_manager = OrderBookManager()
-    bithumb_manager = OrderBookManager()
+    pairs = _load_pairs(config)
+    max_pairs_env = os.getenv("MAX_DRYRUN_PAIRS")
+    if max_pairs_env:
+        try:
+            max_pairs = int(max_pairs_env)
+            pairs = pairs[:max_pairs]
+        except ValueError:
+            pass
+    if not pairs:
+        # 回退到單一配置
+        default_upbit = config["trading"]["symbol_upbit"]
+        default_bithumb = config["trading"]["symbol_bithumb"]
+        pairs = [
+            {
+                "name": default_upbit,
+                "upbit_symbol": default_upbit,
+                "bithumb_symbol": default_bithumb,
+            }
+        ]
 
-    upbit_feed = OrderBookFeed(upbit_wrapper, config["trading"]["symbol_upbit"], upbit_manager)
-    bithumb_feed = OrderBookFeed(bithumb_wrapper, config["trading"]["symbol_bithumb"], bithumb_manager)
+    pair_contexts: List[PairContext] = []
+    for entry in pairs:
+        base = entry["name"]
+        upbit_symbol = entry["upbit_symbol"]
+        bithumb_symbol = entry["bithumb_symbol"]
+        upbit_manager = OrderBookManager()
+        bithumb_manager = OrderBookManager()
+        upbit_feed = OrderBookFeed(upbit_wrapper, upbit_symbol, upbit_manager)
+        bithumb_feed = OrderBookFeed(bithumb_wrapper, bithumb_symbol, bithumb_manager)
+        pair_contexts.append(
+            PairContext(
+                name=base,
+                upbit_symbol=upbit_symbol,
+                bithumb_symbol=bithumb_symbol,
+                upbit_manager=upbit_manager,
+                bithumb_manager=bithumb_manager,
+                upbit_feed=upbit_feed,
+                bithumb_feed=bithumb_feed,
+            )
+        )
 
     strategy = SpreadArbitrageStrategy(
         StrategyConfig(
@@ -89,16 +128,41 @@ async def main() -> None:
     engine = DryRunEngine(
         upbit_wrapper=upbit_wrapper,
         bithumb_wrapper=bithumb_wrapper,
-        upbit_manager=upbit_manager,
-        bithumb_manager=bithumb_manager,
         strategy=strategy,
         risk_manager=risk_manager,
         executor=executor,
-        feeds=[upbit_feed, bithumb_feed],
-        poll_interval=0.5,
+        pairs=pair_contexts,
+        poll_interval=float(config.get("trading", {}).get("poll_interval", 0.5)),
     )
 
     await engine.start()
+
+
+def _load_pairs(config: dict) -> List[dict]:
+    pairs: List[str] = []
+    pairs_file = Path("config/pairs.yaml")
+    if pairs_file.exists():
+        data = yaml.safe_load(pairs_file.read_text(encoding="utf-8")) or {}
+        file_pairs = data.get("pairs", [])
+        if isinstance(file_pairs, list) and file_pairs:
+            pairs = file_pairs
+    if not pairs:
+        pairs = config.get("trading", {}).get("pairs", []) or []
+    normalized: List[dict] = []
+    for entry in pairs:
+        if not isinstance(entry, str):
+            continue
+        base = entry.split("/")[0].strip()
+        if not base:
+            continue
+        upbit_symbol = f"KRW-{base}"
+        bithumb_symbol = f"{base}_KRW"
+        normalized.append({
+            "name": base,
+            "upbit_symbol": upbit_symbol,
+            "bithumb_symbol": bithumb_symbol,
+        })
+    return normalized
 
 
 if __name__ == "__main__":

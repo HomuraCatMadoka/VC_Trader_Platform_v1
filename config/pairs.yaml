@@ -1,0 +1,31 @@
+# 潜力交易對清單（按優先級排序）
+pairs:
+  # 第一梯隊：搬磚之王（高速、低費、流動性極高）
+  - XRP/KRW
+  - TRX/KRW
+  - SOL/KRW
+  - XLM/KRW
+  - HBAR/KRW
+  - ALGO/KRW
+
+  # 第二梯隊：韓國市場熱點
+  - DOGE/KRW
+  - SHIB/KRW
+  - PEPE/KRW
+  - ETC/KRW
+  - SUI/KRW
+  - SEI/KRW
+  - APT/KRW
+  - SAND/KRW
+  - MANA/KRW
+  - CHZ/KRW
+  - WLD/KRW
+
+  # 第三梯隊：泡菜幣
+  - BORA/KRW
+  - IQ/KRW
+  - MED/KRW
+  - MLK/KRW
+  - META/KRW
+  - ICX/KRW
+  - QTUM/KRW

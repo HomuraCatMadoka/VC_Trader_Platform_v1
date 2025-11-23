@@ -5,7 +5,7 @@ import asyncio
 from decimal import Decimal
 from typing import Optional
 
-from business.engine.dryrun import DryRunEngine
+from business.engine.dryrun import DryRunEngine, PairContext
 from business.execution.executor import OrderExecutor
 from business.orderbook.manager import OrderBookManager
 from business.risk.circuit_breaker import CircuitBreakerConfig
@@ -13,7 +13,6 @@ from business.risk.manager import RiskConfig, RiskManager
 from business.risk.position_limiter import PositionLimit
 from business.strategy.base import StrategyConfig
 from business.strategy.spread_arbitrage import SpreadArbitrageStrategy
-from business.strategy.signal import ArbitrageDirection
 from core.datatypes import Balance, OrderBook, OrderResult, PriceLevel
 from core.interface import BaseGateway
 from core.parser.base import JsonParser
@@ -80,6 +79,17 @@ class FakeWrapper(BaseExchangeWrapper):
         raise NotImplementedError
 
 
+class DummyFeed:
+    def __init__(self, manager: OrderBookManager) -> None:
+        self.manager = manager
+
+    async def start(self) -> None:  # pragma: no cover - 測試不啟動真實訂閱
+        return
+
+    async def stop(self) -> None:  # pragma: no cover
+        return
+
+
 def _dummy_result(symbol: str) -> OrderResult:
     return OrderResult(
         order_id="test",
@@ -143,15 +153,23 @@ def test_dryrun_engine_executes_signal() -> None:
         )
     )
     executor = OrderExecutor(upbit_wrapper, bithumb_wrapper, dry_run=False)
+    pair = PairContext(
+        name="BTC",
+        upbit_symbol="KRW-BTC",
+        bithumb_symbol="BTC_KRW",
+        upbit_manager=upbit_manager,
+        bithumb_manager=bithumb_manager,
+        upbit_feed=DummyFeed(upbit_manager),
+        bithumb_feed=DummyFeed(bithumb_manager),
+    )
+
     engine = DryRunEngine(
         upbit_wrapper=upbit_wrapper,
         bithumb_wrapper=bithumb_wrapper,
-        upbit_manager=upbit_manager,
-        bithumb_manager=bithumb_manager,
         strategy=strategy,
         risk_manager=risk_manager,
         executor=executor,
-        feeds=[],
+        pairs=[pair],
         poll_interval=0.1,
     )
 
