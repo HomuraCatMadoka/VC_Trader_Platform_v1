@@ -2,3 +2,14 @@ aiohttp==3.13.2
 msgspec==0.19.0
 PyYAML==6.0.3
 pytest==8.3.3
+pluggy==1.6.0
+packaging==25.0
+iniconfig==2.3.0
+multidict==6.7.0
+frozenlist==1.8.0
+yarl==1.22.0
+aiosignal==1.4.0
+aiohappyeyeballs==2.6.1
+propcache==0.4.1
+attrs==25.4.0
+idna==3.11

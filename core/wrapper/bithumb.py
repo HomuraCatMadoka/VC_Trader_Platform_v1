@@ -1,6 +1,7 @@
 """Bithumb Wrapper。"""
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence
 
 import msgspec
@@ -38,6 +39,24 @@ class BithumbWrapper(BaseExchangeWrapper):
 
     async def get_order_status(self, order_id: str) -> OrderResult:
         raw = await self._fetch_json("POST", "/info/order_detail", params={"order_id": order_id}, signed=True)
+        return self._parser.parse_order_result(raw)
+
+    async def buy_market_order(self, symbol: str, volume: Decimal) -> OrderResult:
+        payload = {
+            "order_currency": symbol.split("_")[0],
+            "payment_currency": symbol.split("_")[-1],
+            "units": str(volume),
+        }
+        raw = await self._fetch_json("POST", "/trade/market_buy", params=payload, signed=True)
+        return self._parser.parse_order_result(raw)
+
+    async def sell_market_order(self, symbol: str, volume: Decimal) -> OrderResult:
+        payload = {
+            "order_currency": symbol.split("_")[0],
+            "payment_currency": symbol.split("_")[-1],
+            "units": str(volume),
+        }
+        raw = await self._fetch_json("POST", "/trade/market_sell", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 
     async def subscribe_orderbook(

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 DEFAULT_LOGGER_NAME = "k_arb"
@@ -12,7 +12,7 @@ DEFAULT_LOGGER_NAME = "k_arb"
 
 def _format_record(record: logging.LogRecord) -> str:
     payload: Dict[str, Any] = {
-        "ts": datetime.utcfromtimestamp(record.created).isoformat() + "Z",
+        "ts": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
         "level": record.levelname,
         "name": record.name,
         "message": record.getMessage(),

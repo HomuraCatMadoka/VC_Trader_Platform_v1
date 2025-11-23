@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
 from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence
 
 import msgspec
@@ -40,6 +41,26 @@ class UpbitWrapper(BaseExchangeWrapper):
 
     async def get_order_status(self, order_id: str) -> OrderResult:
         raw = await self._fetch_json("GET", "/v1/order", params={"uuid": order_id}, signed=True)
+        return self._parser.parse_order_result(raw)
+
+    async def buy_market_order(self, symbol: str, amount: Decimal) -> OrderResult:
+        payload: Mapping[str, Any] = {
+            "market": symbol,
+            "side": "bid",
+            "price": str(amount),
+            "ord_type": "price",
+        }
+        raw = await self._fetch_json("POST", "/v1/orders", params=payload, signed=True)
+        return self._parser.parse_order_result(raw)
+
+    async def sell_market_order(self, symbol: str, volume: Decimal) -> OrderResult:
+        payload: Mapping[str, Any] = {
+            "market": symbol,
+            "side": "ask",
+            "volume": str(volume),
+            "ord_type": "market",
+        }
+        raw = await self._fetch_json("POST", "/v1/orders", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 
     async def subscribe_orderbook(

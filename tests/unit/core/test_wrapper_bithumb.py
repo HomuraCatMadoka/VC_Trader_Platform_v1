@@ -64,3 +64,16 @@ def test_place_order_payload() -> None:
     assert call["signed"] is True
     assert call["params"]["order_currency"] == "BTC"
     assert call["params"]["payment_currency"] == "KRW"
+
+
+def test_market_order_helpers() -> None:
+    responses = {
+        ("POST", "/trade/market_sell"): b"{\"status\":\"0000\",\"data\":{\"order_id\":\"s1\",\"contract_amount\":\"0.1\"}}",
+        ("POST", "/trade/market_buy"): b"{\"status\":\"0000\",\"data\":{\"order_id\":\"b1\",\"contract_amount\":\"0.1\"}}",
+    }
+    gateway = FakeGateway(responses)
+    wrapper = BithumbWrapper(gateway, BithumbParser())
+    asyncio.run(wrapper.sell_market_order("BTC_KRW", Decimal("0.05")))
+    asyncio.run(wrapper.buy_market_order("BTC_KRW", Decimal("0.03")))
+    assert gateway.calls[0]["endpoint"] == "/trade/market_sell"
+    assert gateway.calls[1]["endpoint"] == "/trade/market_buy"

@@ -64,3 +64,17 @@ def test_place_order_payload() -> None:
     assert call["signed"] is True
     assert call["params"]["volume"] == "0.01"
     assert call["params"]["price"] == "100"
+
+
+def test_market_order_helpers() -> None:
+    responses = {
+        ("POST", "/v1/orders"): b"{\"uuid\":\"abc\",\"market\":\"KRW-BTC\",\"state\":\"done\",\"executed_volume\":\"0.1\"}"
+    }
+    gateway = FakeGateway(responses)
+    wrapper = UpbitWrapper(gateway, UpbitParser())
+    asyncio.run(wrapper.sell_market_order("KRW-BTC", Decimal("0.05")))
+    asyncio.run(wrapper.buy_market_order("KRW-BTC", Decimal("10000")))
+    first_call, second_call = gateway.calls
+    assert first_call["params"]["ord_type"] == "market"
+    assert second_call["params"]["ord_type"] == "price"
+    assert second_call["params"]["price"] == "10000"
