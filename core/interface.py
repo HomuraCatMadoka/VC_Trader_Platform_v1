@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, Sequence
+from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence
+
+import aiohttp
 
 from core.datatypes import Balance, OrderBook, OrderRequest, OrderResult
 
@@ -25,11 +27,11 @@ class BaseGateway(ABC):
     @abstractmethod
     async def ws_connect(
         self,
-        url: str,
+        url: Optional[str] = None,
         *,
         headers: Optional[Mapping[str, str]] = None,
-    ) -> AsyncIterator[bytes]:
-        """建立 WebSocket 連線並異步產出消息。"""
+    ) -> aiohttp.ClientWebSocketResponse:
+        """建立 WebSocket 連線並返回底層對象（其本身可作異步迭代）。"""
 
     @abstractmethod
     async def close(self) -> None:
