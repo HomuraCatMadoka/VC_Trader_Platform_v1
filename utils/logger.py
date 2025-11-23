@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict
 
 DEFAULT_LOGGER_NAME = "k_arb"
+_DEFAULT_LEVEL = logging._nameToLevel.get(os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
 
 
 def _format_record(record: logging.LogRecord) -> str:
@@ -53,10 +55,10 @@ class JsonFormatter(logging.Formatter):
         return _format_record(record)
 
 
-def setup_logger(name: str = DEFAULT_LOGGER_NAME, level: int = logging.INFO) -> logging.Logger:
+def setup_logger(name: str = DEFAULT_LOGGER_NAME, level: int | None = None) -> logging.Logger:
     """初始化 logger（冪等）。"""
     logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger.setLevel(level or _DEFAULT_LEVEL)
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(JsonFormatter())
