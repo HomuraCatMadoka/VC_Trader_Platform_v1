@@ -29,6 +29,14 @@ class OrderExecutor:
         self._dry_run = dry_run
 
     async def execute(self, signal: StrategySignal) -> ExecutionResult:
+        logger.info(
+            "執行信號",
+            extra={
+                "direction": signal.direction,
+                "volume": str(signal.volume),
+                "dry_run": self._dry_run,
+            },
+        )
         if self._dry_run:
             return await self._simulate(signal)
         if signal.direction == ArbitrageDirection.UPBIT_SELL:

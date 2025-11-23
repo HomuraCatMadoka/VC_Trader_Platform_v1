@@ -50,6 +50,7 @@ class DryRunEngine:
         self._feeds.append(feed)
 
     async def start(self) -> None:
+        logger.info("啟動行情 Feed", extra={"feeds": len(self._feeds)})
         for feed in self._feeds:
             await feed.start()
         self._stopping.clear()
@@ -70,12 +71,18 @@ class DryRunEngine:
             upbit_ob = self._orderbook_from_snapshot(self._upbit_manager.snapshot)
             bithumb_ob = self._orderbook_from_snapshot(self._bithumb_manager.snapshot)
         except RuntimeError:
+            logger.debug("尚未取得訂單簿快照，等待下一輪")
             return
         signal = self._strategy.calculate(upbit_ob, bithumb_ob)
         if not signal:
+            logger.debug("策略無有效信號")
             return
         balances = await self._fetch_balances()
         if not await self._risk_manager.evaluate(signal, balances):
+            logger.info(
+                "風控拒絕信號",
+                extra={"direction": signal.direction, "volume": str(signal.volume), "spread": str(signal.spread)},
+            )
             return
         try:
             await self._executor.execute(signal)
@@ -86,7 +93,10 @@ class DryRunEngine:
             )
         except Exception as exc:  # pragma: no cover - 真正執行失敗時才會觸發
             await self._risk_manager.record_failure()
-            logger.warning("DryRun 執行失敗", extra={"error": str(exc)})
+            logger.warning(
+                "DryRun 執行失敗",
+                extra={"error": str(exc), "direction": signal.direction, "volume": str(signal.volume)},
+            )
 
     def _orderbook_from_snapshot(self, snapshot: OrderBookSnapshot) -> OrderBook:
         return OrderBook(

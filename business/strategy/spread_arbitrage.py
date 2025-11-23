@@ -7,6 +7,9 @@ from typing import Optional
 from core.datatypes import OrderBook
 from business.strategy.base import BaseStrategy, StrategyConfig
 from business.strategy.signal import ArbitrageDirection, StrategySignal
+from utils.logger import setup_logger
+
+logger = setup_logger("strategy")
 
 
 class SpreadArbitrageStrategy(BaseStrategy):
@@ -16,6 +19,8 @@ class SpreadArbitrageStrategy(BaseStrategy):
         super().__init__(config)
 
     def calculate(self, upbit_ob: OrderBook, bithumb_ob: OrderBook) -> Optional[StrategySignal]:
+        if not upbit_ob.bids or not upbit_ob.asks or not bithumb_ob.bids or not bithumb_ob.asks:
+            return None
         upbit_best_bid = upbit_ob.bids[0]
         upbit_best_ask = upbit_ob.asks[0]
         bithumb_best_bid = bithumb_ob.bids[0]
@@ -41,8 +46,18 @@ class SpreadArbitrageStrategy(BaseStrategy):
         ]
         valid_signals = [signal for signal in spreads if signal]
         if not valid_signals:
+            logger.debug("Spread 不足，無信號")
             return None
-        return max(valid_signals, key=lambda sig: sig.expected_profit)
+        best = max(valid_signals, key=lambda sig: sig.expected_profit)
+        logger.debug(
+            "產生策略信號",
+            extra={
+                "direction": best.direction,
+                "spread": str(best.spread),
+                "volume": str(best.volume),
+            },
+        )
+        return best
 
     def _calc_spread(
         self,

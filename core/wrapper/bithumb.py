@@ -9,16 +9,21 @@ from aiohttp import WSMsgType
 
 from core.datatypes import Balance, OrderBook, OrderRequest, OrderResult
 from core.wrapper.base import BaseExchangeWrapper
+from utils.logger import setup_logger
+
+logger = setup_logger("bithumb_wrapper")
 
 
 class BithumbWrapper(BaseExchangeWrapper):
     """提供 Bithumb API 封裝。"""
 
     async def get_orderbook(self, symbol: str) -> OrderBook:
+        logger.debug("取得 Bithumb 訂單簿", extra={"symbol": symbol})
         raw = await self._fetch_json("GET", f"/public/orderbook/{symbol}")
         return self._parser.parse_orderbook(raw)
 
     async def get_balance(self) -> Sequence[Balance]:
+        logger.debug("查詢 Bithumb 餘額")
         raw = await self._fetch_json("POST", "/info/balance", params={"currency": "ALL"}, signed=True)
         return self._parser.parse_balance(raw)
 
@@ -30,6 +35,7 @@ class BithumbWrapper(BaseExchangeWrapper):
             "price": str(order.price or 0),
             "type": order.side,
         }
+        logger.info("Bithumb 下單", extra={"symbol": order.symbol, "side": order.side, "ord_type": order.order_type})
         raw = await self._fetch_json("POST", "/trade/place", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 
@@ -47,6 +53,7 @@ class BithumbWrapper(BaseExchangeWrapper):
             "payment_currency": symbol.split("_")[-1],
             "units": str(volume),
         }
+        logger.info("Bithumb 市價買", extra={"symbol": symbol, "volume": str(volume)})
         raw = await self._fetch_json("POST", "/trade/market_buy", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 
@@ -56,6 +63,7 @@ class BithumbWrapper(BaseExchangeWrapper):
             "payment_currency": symbol.split("_")[-1],
             "units": str(volume),
         }
+        logger.info("Bithumb 市價賣", extra={"symbol": symbol, "volume": str(volume)})
         raw = await self._fetch_json("POST", "/trade/market_sell", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 

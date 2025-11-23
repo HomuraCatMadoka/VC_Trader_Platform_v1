@@ -11,6 +11,9 @@ import aiohttp
 from core.exceptions import GatewayError
 from core.gateway.ratelimit.token_bucket import TokenBucket
 from core.interface import BaseGateway
+from utils.logger import setup_logger
+
+logger = setup_logger("gateway")
 
 
 @dataclass(slots=True)
@@ -85,6 +88,15 @@ class BaseExchangeGateway(BaseGateway):
             req_headers.update(self._signed_headers(method, endpoint, params))
 
         request_kwargs = self._prepare_request_kwargs(method, params)
+        logger.debug(
+            "發送 API 請求",
+            extra={
+                "exchange": self._settings.name,
+                "method": method,
+                "endpoint": endpoint,
+                "signed": signed,
+            },
+        )
         try:
             async with session.request(method.upper(), url, headers=req_headers, **request_kwargs) as resp:
                 body = await resp.read()
@@ -92,8 +104,26 @@ class BaseExchangeGateway(BaseGateway):
                     raise GatewayError(
                         f"{self._settings.name} API {resp.status}: {body.decode(errors='ignore')}"
                     )
+                logger.debug(
+                    "API 請求成功",
+                    extra={
+                        "exchange": self._settings.name,
+                        "method": method,
+                        "endpoint": endpoint,
+                        "status": resp.status,
+                    },
+                )
                 return body
         except aiohttp.ClientError as exc:
+            logger.warning(
+                "API 請求失敗",
+                extra={
+                    "exchange": self._settings.name,
+                    "method": method,
+                    "endpoint": endpoint,
+                    "error": str(exc),
+                },
+            )
             raise GatewayError(f"{self._settings.name} request failed: {exc}") from exc
 
     def _prepare_request_kwargs(

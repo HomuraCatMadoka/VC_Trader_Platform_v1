@@ -10,16 +10,21 @@ from aiohttp import WSMsgType
 
 from core.datatypes import Balance, OrderBook, OrderRequest, OrderResult
 from core.wrapper.base import BaseExchangeWrapper
+from utils.logger import setup_logger
+
+logger = setup_logger("upbit_wrapper")
 
 
 class UpbitWrapper(BaseExchangeWrapper):
     """提供 Upbit 高階接口。"""
 
     async def get_orderbook(self, symbol: str) -> OrderBook:
+        logger.debug("取得 Upbit 訂單簿", extra={"symbol": symbol})
         raw = await self._fetch_json("GET", "/v1/orderbook", params={"markets": symbol})
         return self._parser.parse_orderbook(raw)
 
     async def get_balance(self) -> Sequence[Balance]:
+        logger.debug("查詢 Upbit 餘額")
         raw = await self._fetch_json("GET", "/v1/accounts", signed=True)
         return self._parser.parse_balance(raw)
 
@@ -32,6 +37,7 @@ class UpbitWrapper(BaseExchangeWrapper):
         }
         if order.price is not None:
             payload = {**payload, "price": str(order.price)}
+        logger.info("Upbit 下單", extra={"symbol": order.symbol, "side": order.side, "ord_type": order.order_type})
         raw = await self._fetch_json("POST", "/v1/orders", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 
@@ -50,6 +56,7 @@ class UpbitWrapper(BaseExchangeWrapper):
             "price": str(amount),
             "ord_type": "price",
         }
+        logger.info("Upbit 市價買", extra={"symbol": symbol, "amount": str(amount)})
         raw = await self._fetch_json("POST", "/v1/orders", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 
@@ -60,6 +67,7 @@ class UpbitWrapper(BaseExchangeWrapper):
             "volume": str(volume),
             "ord_type": "market",
         }
+        logger.info("Upbit 市價賣", extra={"symbol": symbol, "volume": str(volume)})
         raw = await self._fetch_json("POST", "/v1/orders", params=payload, signed=True)
         return self._parser.parse_order_result(raw)
 

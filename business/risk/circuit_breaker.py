@@ -22,6 +22,7 @@ class CircuitBreaker:
     async def allow(self) -> bool:
         async with self._lock:
             if self._failures >= self._config.failure_threshold and time.time() < self._open_until:
+                logger.debug("熔斷中")
                 return False
             if time.time() >= self._open_until:
                 self._failures = 0
@@ -36,3 +37,7 @@ class CircuitBreaker:
             self._failures += 1
             if self._failures >= self._config.failure_threshold:
                 self._open_until = time.time() + self._config.cool_down
+                logger.warning("熔斷觸發", extra={"cool_down": self._config.cool_down})
+from utils.logger import setup_logger
+
+logger = setup_logger("circuit_breaker")
