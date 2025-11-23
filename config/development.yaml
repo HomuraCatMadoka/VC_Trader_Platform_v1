@@ -1,0 +1,21 @@
+# 開發環境示例配置
+logging:
+  level: INFO
+
+exchanges:
+  upbit:
+    rest_base: "https://api.upbit.com"
+    websocket_url: "wss://api.upbit.com/websocket/v1"
+    access_key: "${UPBIT_ACCESS_KEY}"
+    secret_key: "${UPBIT_SECRET_KEY}"
+  bithumb:
+    rest_base: "https://api.bithumb.com"
+    websocket_url: "wss://pubwss.bithumb.com/pub/ws"
+    access_key: "${BITHUMB_ACCESS_KEY}"
+    secret_key: "${BITHUMB_SECRET_KEY}"
+
+trading:
+  symbol_upbit: "KRW-BTC"
+  symbol_bithumb: "BTC_KRW"
+  min_profit_rate: 0.005
+  dry_run: true
