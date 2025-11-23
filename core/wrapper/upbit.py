@@ -87,18 +87,19 @@ class UpbitWrapper(BaseExchangeWrapper):
 
     async def _handle_ws_message(self, data: str, callback: Callable[[OrderBook], Awaitable[None]]) -> None:
         payload = msgspec.json.decode(data.encode())
-        if isinstance(payload, dict):
-            normalized = msgspec.json.encode([payload])
-        else:
-            normalized = msgspec.json.encode(payload)
+        normalized = self._normalize_ws_payload(payload)
         orderbook = self._parser.parse_orderbook(normalized)
         await callback(orderbook)
 
     async def _handle_ws_message_bytes(self, data: bytes, callback: Callable[[OrderBook], Awaitable[None]]) -> None:
         payload = msgspec.json.decode(data)
-        if isinstance(payload, dict):
-            normalized = msgspec.json.encode([payload])
-        else:
-            normalized = msgspec.json.encode(payload)
+        normalized = self._normalize_ws_payload(payload)
         orderbook = self._parser.parse_orderbook(normalized)
         await callback(orderbook)
+
+    def _normalize_ws_payload(self, payload: Any) -> bytes:
+        if isinstance(payload, dict):
+            if "market" not in payload and "code" in payload:
+                payload = {**payload, "market": payload["code"]}
+            return msgspec.json.encode([payload])
+        return msgspec.json.encode(payload)
